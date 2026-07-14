@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#5b2c6f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Personal Payroll">
+  <title>Personal Payroll Hub</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand">
+        <div id="brandLogo" class="brand-logo">N</div>
+        <div>
+          <strong id="brandCompany">Company</strong>
+          <span id="brandEmployee">Employee</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+        <button class="nav-btn" data-view="payroll">Payroll Entry</button>
+        <button class="nav-btn" data-view="reports">Reports</button>
+        <button class="nav-btn" data-view="analytics">Analytics</button>
+        <button class="nav-btn" data-view="calendar">Pay Calendar</button>
+        <button class="nav-btn" data-view="vault">PDF Vault</button>
+        <button class="nav-btn" data-view="settings">Profile & Settings</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="themeQuickToggle" class="secondary full">Dark mode</button>
+        <button id="installBtn" class="primary full hidden">Install app</button>
+      </div>
+    </aside>
+
+    <section class="content-shell">
+      <header class="topbar">
+        <button id="menuBtn" class="menu-btn" aria-label="Open menu">☰</button>
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="todayText"></p>
+        </div>
+        <button id="quickAdd" class="primary">Add paycheck</button>
+      </header>
+
+      <main>
+        <section id="dashboardView" class="view active">
+          <div class="hero card">
+            <div class="hero-profile">
+              <img id="dashboardPhoto" src="assets/avatar.png" alt="Employee photo">
+              <div>
+                <span class="eyebrow">Employee profile</span>
+                <h2 id="dashboardName">Employee</h2>
+                <p id="dashboardCompany">Company</p>
+              </div>
+            </div>
+            <div class="hero-meta">
+              <div><span>Date of joining</span><strong id="joiningText">Not set</strong></div>
+              <div><span>Total tenure</span><strong id="tenureText"></strong></div>
+              <div><span>Pay frequency</span><strong id="frequencyText">Weekly</strong></div>
+              <div><span>Next expected payday</span><strong id="nextPayday"></strong></div>
+            </div>
+          </div>
+
+          <div id="dashboardKpis" class="kpi-grid"></div>
+
+          <div class="dashboard-grid">
+            <article class="card panel">
+              <div class="panel-head">
+                <div><span class="eyebrow">Monthly overview</span><h3>Gross pay and net pay</h3></div>
+                <select id="dashboardYear"></select>
+              </div>
+              <canvas id="dashboardTrendChart"></canvas>
+            </article>
+
+            <article class="card panel">
+              <div class="panel-head">
+                <div><span class="eyebrow">Current year</span><h3>Income distribution</h3></div>
+              </div>
+              <canvas id="dashboardDonutChart"></canvas>
+            </article>
+          </div>
+
+          <article class="card panel">
+            <div class="panel-head">
+              <div><span class="eyebrow">Recent payroll</span><h3>Latest paychecks</h3></div>
+              <button class="secondary" data-view-link="payroll">View all</button>
+            </div>
+            <div id="recentPayroll" class="table-wrap"></div>
+          </article>
+        </section>
+
+        <section id="payrollView" class="view">
+          <div class="payroll-layout">
+            <article class="card panel form-card">
+              <div class="panel-head">
+                <div><span class="eyebrow">Payroll entry</span><h3 id="payrollFormTitle">Add paycheck</h3></div>
+              </div>
+
+              <input id="editIndex" type="hidden">
+
+              <label>Pay date
+                <input id="payDate" type="date">
+              </label>
+
+              <div class="form-grid">
+                <label>Pay Period Start
+                  <input id="periodStart" type="date">
+                </label>
+                <label>Pay Period End
+                  <input id="periodEnd" type="date">
+                </label>
+              </div>
+
+              <div class="info-box">Pay Period Start and End fill automatically from the Pay Date. You can edit either date before saving.</div>
+
+              <div class="form-grid">
+                <label>Gross Pay
+                  <input id="gross" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+                </label>
+                <label>Federal Tax
+                  <input id="federal" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+                </label>
+                <label>Medicare
+                  <input id="medicare" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+                </label>
+                <label>Soc Security
+                  <input id="social" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+                </label>
+              </div>
+
+              <label>Net Payment
+                <input id="net" type="number" value="0.00" readonly>
+              </label>
+
+              <div class="info-box">Net Payment = Gross Pay minus Federal Tax minus Medicare minus Social Security.</div>
+
+              <div class="button-row">
+                <button id="savePaycheck" class="primary">Save paycheck</button>
+                <button id="clearPaycheck" class="secondary">Clear</button>
+              </div>
+            </article>
+
+            <article class="card panel">
+              <div class="panel-head payroll-head">
+                <div><span class="eyebrow">Payroll history</span><h3>All paychecks</h3></div>
+                <div class="toolbar">
+                  <input id="payrollSearch" type="search" placeholder="Search by date">
+                  <select id="payrollYear"></select>
+                  <button id="exportPayrollCsv" class="secondary">Export CSV</button>
+                </div>
+              </div>
+              <div id="payrollTable" class="table-wrap"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="reportsView" class="view">
+          <article class="card panel report-toolbar">
+            <div><span class="eyebrow">Reports</span><h3>Monthly and annual summaries</h3></div>
+            <div class="toolbar">
+              <select id="reportYear"></select>
+              <button id="printReport" class="secondary">Print</button>
+              <button id="exportReportCsv" class="primary">Download report</button>
+            </div>
+          </article>
+
+          <div id="reportKpis" class="kpi-grid"></div>
+
+          <div class="dashboard-grid">
+            <article class="card panel">
+              <div class="panel-head"><div><span class="eyebrow">Monthly totals</span><h3>Gross and net trend</h3></div></div>
+              <canvas id="reportTrendChart"></canvas>
+            </article>
+            <article class="card panel">
+              <div class="panel-head"><div><span class="eyebrow">Tax summary</span><h3>Deductions by category</h3></div></div>
+              <div id="reportTaxSummary" class="metric-list"></div>
+            </article>
+          </div>
+
+          <article class="card panel">
+            <div class="panel-head"><div><span class="eyebrow">Monthly report</span><h3>Detailed totals</h3></div></div>
+            <div id="monthlyReportTable" class="table-wrap"></div>
+          </article>
+        </section>
+
+        <section id="analyticsView" class="view">
+          <article class="card panel report-toolbar">
+            <div><span class="eyebrow">Analytics</span><h3>Paycheck insights</h3></div>
+            <select id="analyticsYear"></select>
+          </article>
+
+          <div id="analyticsKpis" class="kpi-grid"></div>
+
+          <div class="dashboard-grid">
+            <article class="card panel">
+              <div class="panel-head"><div><span class="eyebrow">Weekly pattern</span><h3>Net paycheck trend</h3></div></div>
+              <canvas id="analyticsTrendChart"></canvas>
+            </article>
+            <article class="card panel">
+              <div class="panel-head"><div><span class="eyebrow">Deduction rates</span><h3>Effective withholding</h3></div></div>
+              <canvas id="analyticsRateChart"></canvas>
+            </article>
+          </div>
+
+          <article class="card panel">
+            <div class="panel-head"><div><span class="eyebrow">Paycheck comparison</span><h3>Latest versus previous</h3></div></div>
+            <div id="comparisonGrid" class="comparison-grid"></div>
+          </article>
+        </section>
+
+        <section id="calendarView" class="view">
+          <article class="card panel report-toolbar">
+            <div><span class="eyebrow">Pay calendar</span><h3>Recorded and expected paydays</h3></div>
+            <div class="toolbar">
+              <button id="calendarPrevious" class="secondary">Previous</button>
+              <strong id="calendarTitle"></strong>
+              <button id="calendarNext" class="secondary">Next</button>
+            </div>
+          </article>
+
+          <div class="calendar-layout">
+            <article class="card panel">
+              <div id="calendarGrid" class="calendar-grid"></div>
+            </article>
+            <article class="card panel">
+              <span class="eyebrow">Upcoming</span>
+              <h3>Next payroll events</h3>
+              <div id="upcomingEvents" class="event-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="vaultView" class="view">
+          <article class="card panel">
+            <div class="panel-head">
+              <div><span class="eyebrow">Document center</span><h3>Pay stub PDF vault</h3></div>
+              <label for="pdfUpload" class="primary upload-label">Upload PDFs</label>
+              <input id="pdfUpload" type="file" accept="application/pdf" multiple hidden>
+            </div>
+
+            <div class="info-box">PDF files stay in this browser on this device. Use Full Backup before changing devices.</div>
+
+            <div class="toolbar vault-toolbar">
+              <input id="pdfSearch" type="search" placeholder="Search PDF name">
+              <select id="pdfSort">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="name">Name</option>
+              </select>
+            </div>
+
+            <div id="pdfList" class="document-grid"></div>
+          </article>
+        </section>
+
+        <section id="settingsView" class="view">
+          <div class="settings-grid">
+            <article class="card panel">
+              <span class="eyebrow">Employee profile</span>
+              <h3>Personal details</h3>
+
+              <img id="settingsPhoto" class="settings-photo" src="assets/avatar.png" alt="Employee photo">
+
+              <label for="photoUpload" class="secondary upload-label">Choose photo</label>
+              <input id="photoUpload" type="file" accept="image/*" hidden>
+
+              <label>Employee name
+                <input id="profileName" type="text">
+              </label>
+              <label>Company
+                <input id="profileCompany" type="text">
+              </label>
+              <label>Date of joining
+                <input id="profileJoining" type="date">
+              </label>
+              <label>Pay frequency
+                <select id="profileFrequency">
+                  <option value="weekly">Weekly</option>
+                  <option value="biweekly">Biweekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </label>
+              <button id="saveProfile" class="primary">Save profile</button>
+            </article>
+
+            <article class="card panel">
+              <span class="eyebrow">Notifications</span>
+              <h3>Reminder preferences</h3>
+              <p class="helper">Browser notifications are checked while the app is open.</p>
+              <button id="enableNotifications" class="primary">Enable notifications</button>
+              <p id="notificationStatus" class="helper"></p>
+
+              <label>Days before payday
+                <select id="reminderDays">
+                  <option value="0">On payday</option>
+                  <option value="1">1 day before</option>
+                  <option value="2">2 days before</option>
+                  <option value="3">3 days before</option>
+                </select>
+              </label>
+              <label class="toggle-row"><input id="missingReminder" type="checkbox"> Missing paycheck reminder</label>
+              <label class="toggle-row"><input id="backupReminder" type="checkbox"> Monthly backup reminder</label>
+              <button id="saveNotificationSettings" class="secondary">Save reminders</button>
+
+              <div id="notificationList" class="event-list settings-alerts"></div>
+            </article>
+
+            <article class="card panel">
+              <span class="eyebrow">Complete backup</span>
+              <h3>Payroll, settings, photo, and PDFs</h3>
+              <p class="helper">Recommended before changing devices or clearing browser data.</p>
+              <div class="button-row">
+                <button id="fullBackup" class="primary">Download full backup</button>
+                <label for="fullRestore" class="secondary upload-label">Restore full backup</label>
+                <input id="fullRestore" type="file" accept="application/json" hidden>
+              </div>
+            </article>
+
+            <article class="card panel">
+              <span class="eyebrow">Payroll backup</span>
+              <h3>Lightweight JSON</h3>
+              <p class="helper">Contains payroll and settings without PDF documents.</p>
+              <div class="button-row">
+                <button id="payrollBackup" class="secondary">Backup payroll</button>
+                <label for="payrollRestore" class="secondary upload-label">Restore payroll</label>
+                <input id="payrollRestore" type="file" accept="application/json" hidden>
+              </div>
+            </article>
+
+            <article class="card panel">
+              <span class="eyebrow">Appearance</span>
+              <h3>Theme</h3>
+              <div class="button-row">
+                <button id="lightTheme" class="secondary">Light</button>
+                <button id="darkTheme" class="secondary">Dark</button>
+                <button id="systemTheme" class="secondary">System</button>
+              </div>
+            </article>
+
+            <article class="card panel">
+              <span class="eyebrow">Application</span>
+              <h3>Version and storage</h3>
+              <p class="helper">The app works offline after the first successful visit.</p>
+              <strong id="versionText">Version 1.0</strong>
+            </article>
+
+            <article class="card panel danger-panel">
+              <span class="eyebrow">Reset</span>
+              <h3>Delete local data</h3>
+              <p class="helper">Removes payroll records, profile photo, settings, and stored PDFs.</p>
+              <button id="resetEverything" class="danger">Reset everything</button>
+            </article>
+          </div>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <div id="updateBanner" class="update-banner hidden">
+    <span>A newer app version is available.</span>
+    <button id="applyUpdate" class="primary">Update now</button>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
