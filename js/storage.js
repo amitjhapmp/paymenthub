@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.0";
+export const APP_VERSION = "1.1";
 export const STORAGE_KEY = "personalPayrollHubV1";
 export const PDF_DB = "personalPayrollHubV1Vault";
 export const PDF_STORE = "pdfs";
@@ -47,6 +47,9 @@ export function loadState(){
     merged.records = Array.isArray(saved.records)
       ? saved.records.map(record => ({
           ...record,
+          retirement401k: Number(record.retirement401k || 0),
+          insurance: Number(record.insurance || 0),
+          other: Number(record.other || 0),
           periodStart: record.periodStart || shiftedDate(record.payDate, -11),
           periodEnd: record.periodEnd || shiftedDate(record.payDate, -5)
         }))

@@ -88,7 +88,7 @@ export function drawDonutChart(canvas, labels, values){
   if(!canvas) return;
   const {context: ctx, width} = setupCanvas(canvas, 300);
   const {text, muted} = themeColors();
-  const colors = ["#00a6a6", "#5b2c6f", "#f59e0b", "#64748b"];
+  const colors = ["#00a6a6", "#5b2c6f", "#f59e0b", "#64748b", "#2563eb", "#db2777", "#16a34a"];
   const total = Math.max(1, values.reduce((sum, value) => sum + value, 0));
   const centerX = width / 2;
   const centerY = 112;
@@ -118,10 +118,11 @@ export function drawDonutChart(canvas, labels, values){
   ctx.textAlign = "left";
 
   labels.forEach((label, index) => {
-    const column = index % 2;
-    const row = Math.floor(index / 2);
-    const x = 18 + column * width / 2;
-    const y = 226 + row * 34;
+    const columns = width < 520 ? 2 : 3;
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const x = 18 + column * width / columns;
+    const y = 220 + row * 34;
     ctx.fillStyle = colors[index];
     ctx.fillRect(x, y - 10, 12, 12);
     ctx.fillStyle = text;

@@ -51,8 +51,11 @@ function totals(records = state.records){
     federal: round2(result.federal + Number(record.federal)),
     medicare: round2(result.medicare + Number(record.medicare)),
     social: round2(result.social + Number(record.social)),
+    retirement401k: round2(result.retirement401k + Number(record.retirement401k || 0)),
+    insurance: round2(result.insurance + Number(record.insurance || 0)),
+    other: round2(result.other + Number(record.other || 0)),
     net: round2(result.net + Number(record.net))
-  }), {gross: 0, federal: 0, medicare: 0, social: 0, net: 0});
+  }), {gross: 0, federal: 0, medicare: 0, social: 0, retirement401k: 0, insurance: 0, other: 0, net: 0});
 }
 
 function years(){
@@ -167,11 +170,11 @@ function autoFillPayPeriod(){
 }
 
 function calculateNet(){
-  $("net").value = round2(numberValue("gross") - numberValue("federal") - numberValue("medicare") - numberValue("social")).toFixed(2);
+  $("net").value = round2(numberValue("gross") - numberValue("federal") - numberValue("medicare") - numberValue("social") - numberValue("retirement401k") - numberValue("insurance") - numberValue("other")).toFixed(2);
 }
 
 function clearPaycheckForm(){
-  ["payDate", "periodStart", "periodEnd", "gross", "federal", "medicare", "social", "editIndex"].forEach(id => $(id).value = "");
+  ["payDate", "periodStart", "periodEnd", "gross", "federal", "medicare", "social", "retirement401k", "insurance", "other", "editIndex"].forEach(id => $(id).value = "");
   $("net").value = "0.00";
   $("payrollFormTitle").textContent = "Add paycheck";
 }
@@ -192,6 +195,9 @@ function savePaycheck(){
     federal: numberValue("federal"),
     medicare: numberValue("medicare"),
     social: numberValue("social"),
+    retirement401k: numberValue("retirement401k"),
+    insurance: numberValue("insurance"),
+    other: numberValue("other"),
     net: numberValue("net")
   };
 
@@ -218,6 +224,9 @@ window.editPaycheck = index => {
   $("federal").value = record.federal;
   $("medicare").value = record.medicare;
   $("social").value = record.social;
+  $("retirement401k").value = record.retirement401k || 0;
+  $("insurance").value = record.insurance || 0;
+  $("other").value = record.other || 0;
   $("editIndex").value = index;
   $("payrollFormTitle").textContent = "Edit paycheck";
   calculateNet();
@@ -245,13 +254,16 @@ function payrollTable(records, includeActions = true){
       <td class="amount">${money(record.federal)}</td>
       <td class="amount">${money(record.medicare)}</td>
       <td class="amount">${money(record.social)}</td>
+      <td class="amount">${money(record.retirement401k || 0)}</td>
+      <td class="amount">${money(record.insurance || 0)}</td>
+      <td class="amount">${money(record.other || 0)}</td>
       <td class="amount"><span class="badge">${money(record.net)}</span></td>
       ${includeActions ? `<td><div class="actions"><button class="secondary" onclick="editPaycheck(${index})">Edit</button><button class="danger" onclick="deletePaycheck(${index})">Delete</button></div></td>` : ""}
     </tr>`;
   }).join("");
 
   return `<table>
-    <thead><tr><th>Pay date and period</th><th class="amount">Gross</th><th class="amount">Federal</th><th class="amount">Medicare</th><th class="amount">Social Security</th><th class="amount">Net</th>${includeActions ? "<th>Actions</th>" : ""}</tr></thead>
+    <thead><tr><th>Pay date and period</th><th class="amount">Gross</th><th class="amount">Federal</th><th class="amount">Medicare</th><th class="amount">Social Security</th><th class="amount">401(K)</th><th class="amount">Insurance</th><th class="amount">Other</th><th class="amount">Net</th>${includeActions ? "<th>Actions</th>" : ""}</tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
@@ -325,7 +337,7 @@ function renderReports(){
   const records = state.records.filter(record => record.payDate.startsWith(year));
   const summary = totals(records);
   const average = records.length ? summary.net / records.length : 0;
-  const deductions = summary.federal + summary.medicare + summary.social;
+  const deductions = summary.federal + summary.medicare + summary.social + summary.retirement401k + summary.insurance + summary.other;
 
   $("reportKpis").innerHTML = [
     ["Annual Gross", money(summary.gross), year],
@@ -339,6 +351,9 @@ function renderReports(){
     ["Federal Tax", summary.federal],
     ["Medicare", summary.medicare],
     ["Social Security", summary.social],
+    ["401(K)", summary.retirement401k],
+    ["Insurance", summary.insurance],
+    ["Other", summary.other],
     ["Total Deductions", deductions]
   ].map(item => `<div class="metric-row"><span>${item[0]}</span><strong>${money(item[1])}</strong></div>`).join("");
 
@@ -346,7 +361,7 @@ function renderReports(){
   const monthly = monthlyTotals(year);
 
   $("monthlyReportTable").innerHTML = `<table>
-    <thead><tr><th>Month</th><th class="amount">Gross</th><th class="amount">Federal</th><th class="amount">Medicare</th><th class="amount">Social Security</th><th class="amount">Net</th></tr></thead>
+    <thead><tr><th>Month</th><th class="amount">Gross</th><th class="amount">Federal</th><th class="amount">Medicare</th><th class="amount">Social Security</th><th class="amount">401(K)</th><th class="amount">Insurance</th><th class="amount">Other</th><th class="amount">Net</th></tr></thead>
     <tbody>${monthly.map((value, index) => `<tr><td>${monthNames[index]}</td><td class="amount">${money(value.gross)}</td><td class="amount">${money(value.federal)}</td><td class="amount">${money(value.medicare)}</td><td class="amount">${money(value.social)}</td><td class="amount">${money(value.net)}</td></tr>`).join("")}</tbody>
   </table>`;
 }
@@ -357,7 +372,7 @@ function renderAnalytics(){
   const summary = totals(records);
   const averageGross = records.length ? summary.gross / records.length : 0;
   const averageNet = records.length ? summary.net / records.length : 0;
-  const deductions = summary.federal + summary.medicare + summary.social;
+  const deductions = summary.federal + summary.medicare + summary.social + summary.retirement401k + summary.insurance + summary.other;
   const netValues = records.map(record => record.net);
   const variability = netValues.length ? Math.max(...netValues) - Math.min(...netValues) : 0;
   const trend = netValues.length > 1 ? netValues.at(-1) - netValues[0] : 0;
@@ -383,6 +398,9 @@ function renderAnalytics(){
     ["Federal", current.federal, previous.federal],
     ["Medicare", current.medicare, previous.medicare],
     ["Social Security", current.social, previous.social],
+    ["401(K)", current.retirement401k || 0, previous.retirement401k || 0],
+    ["Insurance", current.insurance || 0, previous.insurance || 0],
+    ["Other", current.other || 0, previous.other || 0],
     ["Net", current.net, previous.net]
   ];
 
@@ -440,7 +458,7 @@ function renderCharts(){
   ]);
 
   const dashboardSummary = totals(state.records.filter(record => record.payDate.startsWith(dashboardYear)));
-  drawDonutChart($("dashboardDonutChart"), ["Net pay","Federal tax","Medicare","Social Security"], [dashboardSummary.net, dashboardSummary.federal, dashboardSummary.medicare, dashboardSummary.social]);
+  drawDonutChart($("dashboardDonutChart"), ["Net pay","Federal tax","Medicare","Social Security","401(K)","Insurance","Other"], [dashboardSummary.net, dashboardSummary.federal, dashboardSummary.medicare, dashboardSummary.social, dashboardSummary.retirement401k, dashboardSummary.insurance, dashboardSummary.other]);
 
   const reportYear = $("reportYear").value || dashboardYear;
   const reportMonthly = monthlyTotals(reportYear);
@@ -474,15 +492,21 @@ function exportCsv(records = state.records, filename = "Payroll_YTD_Report.csv")
   let federalYtd = 0;
   let medicareYtd = 0;
   let socialYtd = 0;
+  let retirement401kYtd = 0;
+  let insuranceYtd = 0;
+  let otherYtd = 0;
   let netYtd = 0;
 
-  const rows = [["Sl No","Pay Date","Period From","Period To","Gross Pay","Gross YTD","Federal Tax","Federal YTD","Medicare","Medicare YTD","Soc Security","Soc Security YTD","Net Payment","Net YTD"]];
+  const rows = [["Sl No","Pay Date","Period From","Period To","Gross Pay","Gross YTD","Federal Tax","Federal YTD","Medicare","Medicare YTD","Soc Security","Soc Security YTD","401(K)","401(K) YTD","Insurance","Insurance YTD","Other","Other YTD","Net Payment","Net YTD"]];
 
   records.forEach((record, index) => {
     grossYtd = round2(grossYtd + record.gross);
     federalYtd = round2(federalYtd + record.federal);
     medicareYtd = round2(medicareYtd + record.medicare);
     socialYtd = round2(socialYtd + record.social);
+    retirement401kYtd = round2(retirement401kYtd + Number(record.retirement401k || 0));
+    insuranceYtd = round2(insuranceYtd + Number(record.insurance || 0));
+    otherYtd = round2(otherYtd + Number(record.other || 0));
     netYtd = round2(netYtd + record.net);
 
     rows.push([
@@ -498,6 +522,12 @@ function exportCsv(records = state.records, filename = "Payroll_YTD_Report.csv")
       medicareYtd,
       record.social,
       socialYtd,
+      record.retirement401k || 0,
+      retirement401kYtd,
+      record.insurance || 0,
+      insuranceYtd,
+      record.other || 0,
+      otherYtd,
       record.net,
       netYtd
     ]);
@@ -825,7 +855,10 @@ async function resetEverything(){
 
 function renderAll(){
   state.records.forEach(record => {
-    record.net = round2(Number(record.gross) - Number(record.federal) - Number(record.medicare) - Number(record.social));
+    record.retirement401k = Number(record.retirement401k || 0);
+    record.insurance = Number(record.insurance || 0);
+    record.other = Number(record.other || 0);
+    record.net = round2(Number(record.gross) - Number(record.federal) - Number(record.medicare) - Number(record.social) - record.retirement401k - record.insurance - record.other);
     record.periodStart = record.periodStart || shiftDate(record.payDate, -11);
     record.periodEnd = record.periodEnd || shiftDate(record.payDate, -5);
   });
@@ -852,7 +885,7 @@ function bindEvents(){
   document.querySelectorAll(".nav-btn").forEach(button => button.addEventListener("click", () => showView(button.dataset.view)));
   document.querySelectorAll("[data-view-link]").forEach(button => button.addEventListener("click", () => showView(button.dataset.viewLink)));
 
-  ["gross","federal","medicare","social"].forEach(id => $(id).addEventListener("input", calculateNet));
+  ["gross","federal","medicare","social","retirement401k","insurance","other"].forEach(id => $(id).addEventListener("input", calculateNet));
   $("payDate").addEventListener("change", autoFillPayPeriod);
 
   $("savePaycheck").addEventListener("click", savePaycheck);

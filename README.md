@@ -35,3 +35,10 @@ GitHub Pages
 First use
 
 Open Profile & Settings and enter the employee name, company, joining date, and pay frequency. Then add the first paycheck.
+
+
+Version 1.1 changes
+
+- Added 401(K), Insurance, and Other deduction fields
+- Included all new deductions in net payment calculations
+- Added the new deductions to payroll tables, reports, analytics, charts, CSV exports, backups, and restored records
