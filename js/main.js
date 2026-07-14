@@ -1389,7 +1389,7 @@ function setupInstallPrompt(){
 function setupServiceWorker(){
   if(!("serviceWorker" in navigator)) return;
 
-  navigator.serviceWorker.register("sw.js?v=1.5.3").then(registration => {
+  navigator.serviceWorker.register("sw.js?v=1.5.4").then(registration => {
     registration.update();
 
     registration.addEventListener("updatefound", () => {
