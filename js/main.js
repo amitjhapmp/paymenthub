@@ -342,7 +342,7 @@ function renderReports(){
   $("reportKpis").innerHTML = [
     ["Annual Gross", money(summary.gross), year],
     ["Annual Net", money(summary.net), year],
-    ["Total Deductions", money(deductions), "Federal and payroll taxes"],
+    ["Total Deductions", money(deductions), "Taxes, benefits, and other deductions"],
     ["Average Net Pay", money(average), `${records.length} paychecks`],
     ["Net Pay Rate", summary.gross ? `${(summary.net / summary.gross * 100).toFixed(1)}%` : "0%", "Net divided by gross"]
   ].map(item => `<article class="card kpi"><span>${item[0]}</span><strong>${item[1]}</strong><small>${item[2]}</small></article>`).join("");
@@ -362,7 +362,28 @@ function renderReports(){
 
   $("monthlyReportTable").innerHTML = `<table>
     <thead><tr><th>Month</th><th class="amount">Gross</th><th class="amount">Federal</th><th class="amount">Medicare</th><th class="amount">Social Security</th><th class="amount">401(K)</th><th class="amount">Insurance</th><th class="amount">Other</th><th class="amount">Net</th></tr></thead>
-    <tbody>${monthly.map((value, index) => `<tr><td>${monthNames[index]}</td><td class="amount">${money(value.gross)}</td><td class="amount">${money(value.federal)}</td><td class="amount">${money(value.medicare)}</td><td class="amount">${money(value.social)}</td><td class="amount">${money(value.net)}</td></tr>`).join("")}</tbody>
+    <tbody>${monthly.map((value, index) => `<tr>
+      <td>${monthNames[index]}</td>
+      <td class="amount">${money(value.gross)}</td>
+      <td class="amount">${money(value.federal)}</td>
+      <td class="amount">${money(value.medicare)}</td>
+      <td class="amount">${money(value.social)}</td>
+      <td class="amount">${money(value.retirement401k)}</td>
+      <td class="amount">${money(value.insurance)}</td>
+      <td class="amount">${money(value.other)}</td>
+      <td class="amount"><span class="badge">${money(value.net)}</span></td>
+    </tr>`).join("")}</tbody>
+    <tfoot><tr class="report-total-row">
+      <th>Total</th>
+      <th class="amount">${money(summary.gross)}</th>
+      <th class="amount">${money(summary.federal)}</th>
+      <th class="amount">${money(summary.medicare)}</th>
+      <th class="amount">${money(summary.social)}</th>
+      <th class="amount">${money(summary.retirement401k)}</th>
+      <th class="amount">${money(summary.insurance)}</th>
+      <th class="amount">${money(summary.other)}</th>
+      <th class="amount">${money(summary.net)}</th>
+    </tr></tfoot>
   </table>`;
 }
 

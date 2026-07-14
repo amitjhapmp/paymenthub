@@ -179,3 +179,5 @@ canvas{width:100%;display:block}
 .confidence-medium{border-color:rgba(217,119,6,.45);background:rgba(217,119,6,.08)}
 @media(max-width:760px){.import-form-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.import-form-grid{grid-template-columns:1fr}}
+
+.report-total-row th{font-weight:800;background:var(--surface-2);border-top:2px solid var(--line);position:static}

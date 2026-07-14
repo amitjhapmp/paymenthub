@@ -1,4 +1,4 @@
-# Payroll Pro Version 1.5.5
+# Payroll Pro Version 1.5.6
 
 Payroll Pro is a browser based payroll tracker with no prefilled employee or payroll data.
 
@@ -56,3 +56,12 @@ Upload the full folder to a GitHub repository, enable GitHub Pages from the main
 - Detects Medicare and Social Security labels anywhere in reconstructed PDF rows.
 - Adds a dedicated BBSI current/YTD deduction-table fallback.
 - Uses the first amount after each deduction label as the current deduction.
+
+
+## Version 1.5.6 report fix
+
+- Corrected the monthly report row alignment after adding 401(K), Insurance, and Other columns.
+- Net pay now appears only in the Net column.
+- Added annual totals at the bottom of the monthly report.
+- Confirmed Total Deductions includes Federal, Medicare, Social Security, 401(K), Insurance, and Other only.
+- Updated the offline cache so browsers load the corrected report code.
