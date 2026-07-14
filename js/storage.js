@@ -1,7 +1,8 @@
-export const APP_VERSION = "1.2";
-export const STORAGE_KEY = "payrollProV1";
+export const APP_VERSION = "1.5";
+export const STORAGE_KEY = "payrollProV15";
+const PREVIOUS_STORAGE_KEY = "payrollProV1";
 const LEGACY_STORAGE_KEY = "personalPayrollHubV1";
-export const PDF_DB = "payrollProV1Vault";
+export const PDF_DB = "payrollProV15Vault";
 export const PDF_STORE = "pdfs";
 
 export function round2(value){
@@ -40,7 +41,7 @@ export function defaultState(){
 
 export function loadState(){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(PREVIOUS_STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     const saved = JSON.parse(raw || "null");
     if(!saved) return defaultState();
 
@@ -52,6 +53,11 @@ export function loadState(){
           retirement401k: Number(record.retirement401k || 0),
           insurance: Number(record.insurance || 0),
           other: Number(record.other || 0),
+          sourcePdfId: record.sourcePdfId || "",
+          sourcePdfName: record.sourcePdfName || "",
+          extractionConfidence: Number(record.extractionConfidence || 0),
+          ytdGross: Number(record.ytdGross || 0),
+          ytdNet: Number(record.ytdNet || 0),
           periodStart: record.periodStart || shiftedDate(record.payDate, -11),
           periodEnd: record.periodEnd || shiftedDate(record.payDate, -5)
         }))

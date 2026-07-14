@@ -1,42 +1,36 @@
-# Payroll Pro 1.2
+# Payroll Pro Version 1.5
 
-Professional payroll management app for individuals and small businesses.
+Payroll Pro is a browser based payroll tracker with no prefilled employee or payroll data.
 
-Features
+Included
 
-- No prefilled employee, company, payroll, or PDF data
-- Generic profile avatar with no initials
-- Payroll entry, edit, delete, search, and filters
-- Federal Tax, Medicare, Social Security, 401(K), Insurance, and Other deductions
-- Automatic net pay calculation
-- Dashboard, reports, analytics, and pay calendar
-- PDF pay stub vault
-- Backup and restore
-- Light, dark, and system themes
-- Installable PWA with offline support
-- Responsive desktop and mobile layout
-- GitHub Pages ready
+- Generic Payroll Pro branding and avatar
+- Payroll entry with Federal Tax, Medicare, Social Security, 401(K), Insurance, and Other deductions
+- Automatic net payment calculation
+- Dashboard, reports, analytics, calendar, notifications, backups, and PDF vault
+- PDF pay stub text extraction
+- OCR fallback for scanned PDFs
+- Review and edit screen before saving imported payroll data
+- Generic field detection with common payroll label variations
+- Duplicate pay stub detection
+- Bulk import entry point for unprocessed PDFs
+- YTD gross and net reconciliation
+- Import source and confidence tracking
+- Installable PWA and offline app shell
 
-Run locally
+PDF import
 
-1. Extract the ZIP.
-2. Open the folder in VS Code.
-3. Install the Live Server extension.
-4. Right-click index.html.
-5. Select Open with Live Server.
+1. Upload one or more pay stub PDFs to PDF Vault.
+2. Select Import Payroll Data.
+3. Payroll Pro first checks embedded PDF text.
+4. If the PDF is scanned, Payroll Pro uses OCR.
+5. Review every detected field.
+6. Save the confirmed paycheck.
+
+Important
+
+PDF formats vary by employer. Detection is designed for common labels, but the review screen is required because OCR and document layouts can produce errors. PDF and OCR libraries load from a CDN during extraction, so an internet connection is required for the first PDF import. Payroll data and PDF files remain in the browser storage on the device.
 
 GitHub Pages
 
-1. Upload all files and folders to a GitHub repository.
-2. Open Settings, then Pages.
-3. Select Deploy from a branch.
-4. Choose main and root.
-5. Save and wait for deployment.
-
-Version 1.2 changes
-
-- Renamed the app to Payroll Pro
-- Added a neutral profile avatar with no KPR text or initials
-- Added generic payroll app icons
-- Updated browser title, PWA manifest, notification title, backups, cache, and storage branding
-- Preserved migration support for Version 1.1 local payroll data
+Upload the full folder to a GitHub repository, enable GitHub Pages from the main branch root, and open the published URL. Use Ctrl + Shift + R after replacing an older version.

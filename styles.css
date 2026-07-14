@@ -168,3 +168,14 @@ canvas{width:100%;display:block}
   main{padding:0}
   .card{box-shadow:none}
 }
+.modal{position:fixed;inset:0;z-index:200;background:rgba(15,23,42,.72);display:grid;place-items:center;padding:20px;overflow:auto}
+.modal.hidden{display:none!important}
+.modal-card{width:min(980px,100%);max-height:94vh;overflow:auto}
+.import-form-grid{grid-template-columns:repeat(3,1fr)}
+.extracted-text{white-space:pre-wrap;max-height:220px;overflow:auto;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);font-size:11px}
+.modal-actions{margin-top:16px}
+.imported-tag{display:inline-flex;padding:4px 7px;border-radius:999px;background:rgba(15,159,110,.1);color:var(--green);font-size:11px;font-weight:700;margin-top:8px}
+.confidence-low{border-color:rgba(192,57,43,.45);background:rgba(192,57,43,.08)}
+.confidence-medium{border-color:rgba(217,119,6,.45);background:rgba(217,119,6,.08)}
+@media(max-width:760px){.import-form-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.import-form-grid{grid-template-columns:1fr}}

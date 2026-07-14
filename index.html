@@ -262,8 +262,11 @@
                 <option value="oldest">Oldest first</option>
                 <option value="name">Name</option>
               </select>
+              <button id="bulkImportPdfs" class="primary">Import all unprocessed PDFs</button>
             </div>
 
+            <div class="info-box">Use Import Payroll Data for text PDFs. Scanned PDFs use OCR when needed. Always review detected values before saving.</div>
+            <div id="importProgress" class="helper"></div>
             <div id="pdfList" class="document-grid"></div>
           </article>
         </section>
@@ -356,7 +359,7 @@
               <span class="eyebrow">Application</span>
               <h3>Version and storage</h3>
               <p class="helper">The app works offline after the first successful visit.</p>
-              <strong id="versionText">Version 1.2</strong>
+              <strong id="versionText">Version 1.5</strong>
             </article>
 
             <article class="card panel danger-panel">
@@ -374,6 +377,41 @@
   <div id="updateBanner" class="update-banner hidden">
     <span>A newer app version is available.</span>
     <button id="applyUpdate" class="primary">Update now</button>
+  </div>
+
+  <div id="pdfImportModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pdfImportTitle">
+    <div class="modal-card card panel">
+      <div class="panel-head">
+        <div><span class="eyebrow">PDF payroll import</span><h3 id="pdfImportTitle">Review extracted data</h3></div>
+        <button id="closePdfImport" class="secondary">Close</button>
+      </div>
+      <p id="pdfImportSource" class="helper"></p>
+      <div id="pdfImportConfidence" class="info-box"></div>
+      <div class="form-grid import-form-grid">
+        <label>Pay Date<input id="importPayDate" type="date"></label>
+        <label>Period Start<input id="importPeriodStart" type="date"></label>
+        <label>Period End<input id="importPeriodEnd" type="date"></label>
+        <label>Gross Pay<input id="importGross" type="number" step="0.01"></label>
+        <label>Federal Tax<input id="importFederal" type="number" step="0.01"></label>
+        <label>Medicare<input id="importMedicare" type="number" step="0.01"></label>
+        <label>Social Security<input id="importSocial" type="number" step="0.01"></label>
+        <label>401(K)<input id="import401k" type="number" step="0.01"></label>
+        <label>Insurance<input id="importInsurance" type="number" step="0.01"></label>
+        <label>Other<input id="importOther" type="number" step="0.01"></label>
+        <label>Net Payment<input id="importNet" type="number" step="0.01"></label>
+        <label>Gross YTD<input id="importYtdGross" type="number" step="0.01"></label>
+        <label>Net YTD<input id="importYtdNet" type="number" step="0.01"></label>
+      </div>
+      <div id="reconciliationResult" class="info-box"></div>
+      <details>
+        <summary>Show extracted text</summary>
+        <pre id="extractedPdfText" class="extracted-text"></pre>
+      </details>
+      <div class="button-row modal-actions">
+        <button id="saveImportedPaycheck" class="primary">Save as paycheck</button>
+        <button id="recalculateImportedNet" class="secondary">Recalculate net</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast"></div>

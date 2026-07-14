@@ -579,6 +579,323 @@ function dataUrlToBlob(dataUrl){
   return new Blob([bytes], {type: mime});
 }
 
+
+let currentPdfImport = null;
+let pdfJsModule = null;
+
+async function loadPdfJs(){
+  if(pdfJsModule) return pdfJsModule;
+  pdfJsModule = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs");
+  pdfJsModule.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+  return pdfJsModule;
+}
+
+function normalizePayrollText(text){
+  return String(text || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/[|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseMoney(value){
+  if(value == null) return 0;
+  const cleaned = String(value).replace(/[$,()\s]/g, "");
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? Math.abs(number) : 0;
+}
+
+function parseDateValue(value){
+  if(!value) return "";
+  const raw = String(value).trim();
+  const match = raw.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+  if(!match) return "";
+  let year = Number(match[3]);
+  if(year < 100) year += 2000;
+  const month = String(Number(match[1])).padStart(2, "0");
+  const day = String(Number(match[2])).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function firstMatch(text, patterns, parser = value => value){
+  for(const pattern of patterns){
+    const match = text.match(pattern);
+    if(match?.[1]) return parser(match[1]);
+  }
+  return parser("");
+}
+
+function detectPayStubFields(rawText){
+  const text = normalizePayrollText(rawText);
+  const amount = String.raw`\$?\s*([\d,]+(?:\.\d{2})?)`;
+  const date = String.raw`(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})`;
+
+  const fields = {
+    payDate: firstMatch(text, [
+      new RegExp(`(?:pay\s*date|check\s*date|payment\s*date|deposit\s*date)[:\s-]*${date}`, "i")
+    ], parseDateValue),
+    periodStart: firstMatch(text, [
+      new RegExp(`(?:period\s*start|pay\s*period\s*start|period\s*from|from)[:\s-]*${date}`, "i")
+    ], parseDateValue),
+    periodEnd: firstMatch(text, [
+      new RegExp(`(?:period\s*end|pay\s*period\s*end|period\s*to|through|thru)[:\s-]*${date}`, "i")
+    ], parseDateValue),
+    gross: firstMatch(text, [
+      new RegExp(`(?:current\s+gross|gross\s+pay|gross\s+earnings|total\s+earnings|gross)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    federal: firstMatch(text, [
+      new RegExp(`(?:federal\s+income\s+tax|federal\s+withholding|federal\s+tax|fed\s+tax|fit)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    medicare: firstMatch(text, [
+      new RegExp(`(?:medicare(?:\s+tax)?|med\s+tax)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    social: firstMatch(text, [
+      new RegExp(`(?:social\s+security|soc\s+security|oasdi|fica\s+ss)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    retirement401k: firstMatch(text, [
+      new RegExp(`(?:401\s*\(?k\)?|retirement|pre[-\s]*tax\s+retirement)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    insurance: firstMatch(text, [
+      new RegExp(`(?:health\s+insurance|medical\s+insurance|insurance|medical\s+plan|benefits)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    other: firstMatch(text, [
+      new RegExp(`(?:other\s+deductions?|misc(?:ellaneous)?\s+deductions?)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    net: firstMatch(text, [
+      new RegExp(`(?:net\s+pay|net\s+payment|take\s+home\s+pay|direct\s+deposit)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    ytdGross: firstMatch(text, [
+      new RegExp(`(?:gross\s+(?:pay\s+)?ytd|ytd\s+gross)[:\s-]*${amount}`, "i")
+    ], parseMoney),
+    ytdNet: firstMatch(text, [
+      new RegExp(`(?:net\s+(?:pay\s+)?ytd|ytd\s+net)[:\s-]*${amount}`, "i")
+    ], parseMoney)
+  };
+
+  if(!fields.periodStart || !fields.periodEnd){
+    const periodMatch = text.match(new RegExp(`(?:pay\s*period|period)[:\s-]*${date}\s*(?:to|-|through|thru)\s*${date}`, "i"));
+    if(periodMatch){
+      fields.periodStart ||= parseDateValue(periodMatch[1]);
+      fields.periodEnd ||= parseDateValue(periodMatch[2]);
+    }
+  }
+
+  if(fields.gross && !fields.net){
+    fields.net = round2(fields.gross - fields.federal - fields.medicare - fields.social - fields.retirement401k - fields.insurance - fields.other);
+  }
+
+  const keyFields = [fields.payDate, fields.gross, fields.net];
+  const supporting = [fields.periodStart, fields.periodEnd, fields.federal, fields.medicare, fields.social, fields.retirement401k, fields.insurance];
+  const score = keyFields.filter(Boolean).length * 22 + supporting.filter(Boolean).length * 5;
+  fields.confidence = Math.min(99, Math.max(10, score));
+  return fields;
+}
+
+async function extractTextFromPdf(blob){
+  const pdfjs = await loadPdfJs();
+  const data = await blob.arrayBuffer();
+  const pdf = await pdfjs.getDocument({data}).promise;
+  const pages = [];
+  for(let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++){
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(item => item.str).join(" "));
+  }
+  return {text: pages.join("\n"), pdf};
+}
+
+async function loadTesseract(){
+  if(window.Tesseract) return window.Tesseract;
+  await new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("OCR library could not be loaded."));
+    document.head.appendChild(script);
+  });
+  return window.Tesseract;
+}
+
+async function ocrPdf(pdf, maxPages = 3){
+  const Tesseract = await loadTesseract();
+  const worker = await Tesseract.createWorker("eng", 1, {
+    logger: message => {
+      if(message.status === "recognizing text"){
+        $("importProgress").textContent = `OCR ${Math.round((message.progress || 0) * 100)}%`;
+      }
+    }
+  });
+  let text = "";
+  try{
+    const pageCount = Math.min(pdf.numPages, maxPages);
+    for(let pageNumber = 1; pageNumber <= pageCount; pageNumber++){
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({scale: 2});
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({canvasContext: canvas.getContext("2d"), viewport}).promise;
+      const result = await worker.recognize(canvas);
+      text += `\n${result.data.text}`;
+    }
+  }finally{
+    await worker.terminate();
+  }
+  return text;
+}
+
+function isDuplicateImportedRecord(fields, pdfId){
+  return state.records.some(record =>
+    (pdfId && record.sourcePdfId === pdfId) ||
+    (fields.payDate && record.payDate === fields.payDate && Math.abs(Number(record.gross) - Number(fields.gross)) < .01 && Math.abs(Number(record.net) - Number(fields.net)) < .01)
+  );
+}
+
+function currentYearTotalsBefore(payDate){
+  if(!payDate) return {gross:0, net:0};
+  const year = payDate.slice(0,4);
+  return totals(state.records.filter(record => record.payDate.startsWith(year) && record.payDate < payDate));
+}
+
+function renderReconciliation(){
+  if(!currentPdfImport) return;
+  const payDate = $("importPayDate").value;
+  const previous = currentYearTotalsBefore(payDate);
+  const expectedGrossYtd = round2(previous.gross + numberValue("importGross"));
+  const expectedNetYtd = round2(previous.net + numberValue("importNet"));
+  const statedGrossYtd = numberValue("importYtdGross");
+  const statedNetYtd = numberValue("importYtdNet");
+  const messages = [];
+  if(statedGrossYtd) messages.push(`Gross YTD difference: ${money(round2(statedGrossYtd - expectedGrossYtd))}`);
+  if(statedNetYtd) messages.push(`Net YTD difference: ${money(round2(statedNetYtd - expectedNetYtd))}`);
+  if(!messages.length) messages.push(`Calculated app YTD after import: Gross ${money(expectedGrossYtd)}, Net ${money(expectedNetYtd)}.`);
+  $("reconciliationResult").textContent = messages.join("  ");
+}
+
+function setImportField(id, value){
+  $(id).value = value || value === 0 ? value : "";
+}
+
+function openPdfImportReview(document, fields, text, method){
+  currentPdfImport = {document, fields, text, method};
+  $("pdfImportSource").textContent = `${document.name}. Extraction method: ${method}.`;
+  $("pdfImportConfidence").textContent = `Detection confidence: ${fields.confidence}%. Review every field before saving.`;
+  $("pdfImportConfidence").className = `info-box ${fields.confidence < 45 ? "confidence-low" : fields.confidence < 70 ? "confidence-medium" : ""}`;
+  setImportField("importPayDate", fields.payDate);
+  setImportField("importPeriodStart", fields.periodStart);
+  setImportField("importPeriodEnd", fields.periodEnd);
+  setImportField("importGross", fields.gross);
+  setImportField("importFederal", fields.federal);
+  setImportField("importMedicare", fields.medicare);
+  setImportField("importSocial", fields.social);
+  setImportField("import401k", fields.retirement401k);
+  setImportField("importInsurance", fields.insurance);
+  setImportField("importOther", fields.other);
+  setImportField("importNet", fields.net);
+  setImportField("importYtdGross", fields.ytdGross);
+  setImportField("importYtdNet", fields.ytdNet);
+  $("extractedPdfText").textContent = text;
+  renderReconciliation();
+  $("pdfImportModal").classList.remove("hidden");
+}
+
+async function importPayrollFromPdf(id, bulk = false){
+  const documents = await getAllPdfs();
+  const document = documents.find(item => item.id === id);
+  if(!document) return false;
+  if(state.records.some(record => record.sourcePdfId === id)){
+    if(!bulk) toast("This PDF has already been imported.");
+    return false;
+  }
+
+  try{
+    $("importProgress").textContent = `Reading ${document.name}...`;
+    const result = await extractTextFromPdf(document.blob);
+    let text = result.text;
+    let method = "embedded PDF text";
+    if(normalizePayrollText(text).length < 80){
+      $("importProgress").textContent = `No usable text found. Running OCR for ${document.name}...`;
+      text = await ocrPdf(result.pdf);
+      method = "OCR";
+    }
+    const fields = detectPayStubFields(text);
+    if(isDuplicateImportedRecord(fields, id)){
+      if(!bulk) toast("A matching paycheck already exists.");
+      return false;
+    }
+    openPdfImportReview(document, fields, text, method);
+    $("importProgress").textContent = "";
+    return true;
+  }catch(error){
+    console.error(error);
+    $("importProgress").textContent = "";
+    toast("PDF extraction failed. Open the PDF and enter the values manually.");
+    return false;
+  }
+}
+
+window.importPayrollFromPdf = importPayrollFromPdf;
+
+function closePdfImport(){
+  $("pdfImportModal").classList.add("hidden");
+  currentPdfImport = null;
+}
+
+function recalculateImportedNet(){
+  const net = round2(numberValue("importGross") - numberValue("importFederal") - numberValue("importMedicare") - numberValue("importSocial") - numberValue("import401k") - numberValue("importInsurance") - numberValue("importOther"));
+  $("importNet").value = net.toFixed(2);
+  renderReconciliation();
+}
+
+function saveImportedPaycheck(){
+  if(!currentPdfImport) return;
+  const payDate = $("importPayDate").value;
+  if(!payDate){
+    toast("Confirm the pay date before saving.");
+    return;
+  }
+  const record = {
+    payDate,
+    periodStart: $("importPeriodStart").value || shiftDate(payDate, -11),
+    periodEnd: $("importPeriodEnd").value || shiftDate(payDate, -5),
+    gross: numberValue("importGross"),
+    federal: numberValue("importFederal"),
+    medicare: numberValue("importMedicare"),
+    social: numberValue("importSocial"),
+    retirement401k: numberValue("import401k"),
+    insurance: numberValue("importInsurance"),
+    other: numberValue("importOther"),
+    net: numberValue("importNet"),
+    ytdGross: numberValue("importYtdGross"),
+    ytdNet: numberValue("importYtdNet"),
+    sourcePdfId: currentPdfImport.document.id,
+    sourcePdfName: currentPdfImport.document.name,
+    extractionConfidence: Number(currentPdfImport.fields.confidence || 0)
+  };
+  if(isDuplicateImportedRecord(record, currentPdfImport.document.id)){
+    toast("A matching paycheck already exists.");
+    return;
+  }
+  state.records.push(record);
+  state.records.sort((a,b) => a.payDate.localeCompare(b.payDate));
+  persist();
+  closePdfImport();
+  refreshYearSelects();
+  renderAll();
+  renderPdfList();
+  toast("PDF payroll data saved.");
+}
+
+async function bulkImportPdfs(){
+  const documents = (await getAllPdfs()).filter(document => !state.records.some(record => record.sourcePdfId === document.id));
+  if(!documents.length){
+    toast("No unprocessed PDFs found.");
+    return;
+  }
+  $("importProgress").textContent = `${documents.length} PDF files are ready. Review and save each file one at a time.`;
+  await importPayrollFromPdf(documents[0].id, true);
+}
+
 async function uploadPdfs(files){
   for(const file of [...files]){
     if(file.type !== "application/pdf") continue;
@@ -624,9 +941,10 @@ async function renderPdfList(){
     (a, b) => b.created.localeCompare(a.created)
   );
 
-  $("pdfList").innerHTML = documents.length ? documents.map(document =>
-    `<div class="document-card"><strong>${document.name}</strong><span>${(document.size / 1024).toFixed(1)} KB · ${new Date(document.created).toLocaleDateString()}</span><div class="document-actions"><button class="secondary" onclick="openStoredPdf('${document.id}')">Open</button><button class="danger" onclick="deleteStoredPdf('${document.id}')">Delete</button></div></div>`
-  ).join("") : '<p class="helper">No PDF files stored.</p>';
+  $("pdfList").innerHTML = documents.length ? documents.map(document => {
+    const imported = state.records.some(record => record.sourcePdfId === document.id);
+    return `<div class="document-card"><strong>${document.name}</strong><span>${(document.size / 1024).toFixed(1)} KB · ${new Date(document.created).toLocaleDateString()}</span>${imported ? '<span class="imported-tag">Imported</span>' : ''}<div class="document-actions"><button class="secondary" onclick="openStoredPdf('${document.id}')">Open</button><button class="primary" onclick="importPayrollFromPdf('${document.id}')" ${imported ? 'disabled' : ''}>${imported ? 'Imported' : 'Import Payroll Data'}</button><button class="danger" onclick="deleteStoredPdf('${document.id}')">Delete</button></div></div>`;
+  }).join("") : '<p class="helper">No PDF files stored.</p>';
 }
 
 function renderSettings(){
@@ -917,6 +1235,11 @@ function bindEvents(){
   $("pdfUpload").addEventListener("change", event => uploadPdfs(event.target.files));
   $("pdfSearch").addEventListener("input", renderPdfList);
   $("pdfSort").addEventListener("change", renderPdfList);
+  $("bulkImportPdfs").addEventListener("click", bulkImportPdfs);
+  $("closePdfImport").addEventListener("click", closePdfImport);
+  $("saveImportedPaycheck").addEventListener("click", saveImportedPaycheck);
+  $("recalculateImportedNet").addEventListener("click", recalculateImportedNet);
+  ["importPayDate","importGross","importFederal","importMedicare","importSocial","import401k","importInsurance","importOther","importNet","importYtdGross","importYtdNet"].forEach(id => $(id).addEventListener("input", renderReconciliation));
 
   $("photoUpload").addEventListener("change", event => {
     if(event.target.files[0]) handlePhoto(event.target.files[0]);
@@ -965,7 +1288,7 @@ function setupInstallPrompt(){
 function setupServiceWorker(){
   if(!("serviceWorker" in navigator)) return;
 
-  navigator.serviceWorker.register("sw.js?v=1.0").then(registration => {
+  navigator.serviceWorker.register("sw.js?v=1.5").then(registration => {
     registration.update();
 
     registration.addEventListener("updatefound", () => {
