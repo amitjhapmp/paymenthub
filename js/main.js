@@ -583,11 +583,61 @@ function dataUrlToBlob(dataUrl){
 let currentPdfImport = null;
 let pdfJsModule = null;
 
+function loadExternalScript(url){
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-payroll-pro-src="${url}"]`);
+    if(existing){
+      if(existing.dataset.loaded === "true") resolve();
+      else existing.addEventListener("load", resolve, {once:true});
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = url;
+    script.async = true;
+    script.dataset.payrollProSrc = url;
+    script.onload = () => { script.dataset.loaded = "true"; resolve(); };
+    script.onerror = () => reject(new Error(`Could not load ${url}`));
+    document.head.appendChild(script);
+  });
+}
+
 async function loadPdfJs(){
   if(pdfJsModule) return pdfJsModule;
-  pdfJsModule = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs");
-  pdfJsModule.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
-  return pdfJsModule;
+
+  const moduleSources = [
+    {
+      module: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs",
+      worker: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs"
+    },
+    {
+      module: "https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.min.mjs",
+      worker: "https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs"
+    }
+  ];
+
+  const errors = [];
+  for(const source of moduleSources){
+    try{
+      const module = await import(source.module);
+      module.GlobalWorkerOptions.workerSrc = source.worker;
+      pdfJsModule = module;
+      return pdfJsModule;
+    }catch(error){
+      errors.push(error?.message || String(error));
+    }
+  }
+
+  try{
+    await loadExternalScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+    if(!window.pdfjsLib) throw new Error("PDF.js global object was not created.");
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    pdfJsModule = window.pdfjsLib;
+    return pdfJsModule;
+  }catch(error){
+    errors.push(error?.message || String(error));
+  }
+
+  throw new Error(`PDF reader libraries could not load. ${errors.join(" | ")}`);
 }
 
 function normalizePayrollText(text){
@@ -706,14 +756,21 @@ async function extractTextFromPdf(blob){
 
 async function loadTesseract(){
   if(window.Tesseract) return window.Tesseract;
-  await new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-    script.onload = resolve;
-    script.onerror = () => reject(new Error("OCR library could not be loaded."));
-    document.head.appendChild(script);
-  });
-  return window.Tesseract;
+  const sources = [
+    "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js",
+    "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.5/tesseract.min.js"
+  ];
+  const errors = [];
+  for(const source of sources){
+    try{
+      await loadExternalScript(source);
+      if(window.Tesseract) return window.Tesseract;
+    }catch(error){
+      errors.push(error?.message || String(error));
+    }
+  }
+  throw new Error(`OCR library could not be loaded. ${errors.join(" | ")}`);
 }
 
 async function ocrPdf(pdf, maxPages = 3){
@@ -828,8 +885,9 @@ async function importPayrollFromPdf(id, bulk = false){
     return true;
   }catch(error){
     console.error(error);
-    $("importProgress").textContent = "";
-    toast("PDF extraction failed. Open the PDF and enter the values manually.");
+    const reason = error?.message || "Unknown extraction error";
+    $("importProgress").textContent = `Extraction failed: ${reason}`;
+    toast("PDF extraction failed. Check internet access, refresh the app, and try again.");
     return false;
   }
 }

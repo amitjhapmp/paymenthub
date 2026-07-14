@@ -1,4 +1,4 @@
-# Payroll Pro Version 1.5
+# Payroll Pro Version 1.5.1
 
 Payroll Pro is a browser based payroll tracker with no prefilled employee or payroll data.
 
