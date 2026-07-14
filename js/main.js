@@ -683,11 +683,16 @@ function detectPayStubFields(rawText){
   const date = String.raw`(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})`;
 
   const lineAmount = (labels) => {
-    for(const line of lines){
-      for(const label of labels){
-        const match = line.match(new RegExp(String.raw`^\s*(?:${label})\s+\$?([\d,]+(?:\.\d{2})?)\b`, "i"));
+    // Payroll PDFs often place deduction labels in the middle of a reconstructed
+    // row, not at the start. Search each visual row first, then the flattened text.
+    for(const label of labels){
+      const pattern = new RegExp(String.raw`(?:^|\s)(?:${label})\s*[:\-]?\s*\$?([\d,]+(?:\.\d{2})?)\b`, "i");
+      for(const line of lines){
+        const match = line.match(pattern);
         if(match) return parseMoney(match[1]);
       }
+      const flatMatch = text.match(pattern);
+      if(flatMatch) return parseMoney(flatMatch[1]);
     }
     return 0;
   };
@@ -721,6 +726,16 @@ function detectPayStubFields(rawText){
       new RegExp(String.raw`(?:net\s+(?:pay\s+)?ytd|ytd\s+net)[:\s-]*${amount}`, "i")
     ], parseMoney)
   };
+
+  // Dedicated fallback for BBSI deduction tables. The first number after each
+  // label is the current deduction, followed by YTD and taxable wages.
+  const bbsiDeduction = label => {
+    const match = text.match(new RegExp(String.raw`(?:^|\s)${label}\s+\$?([\d,]+(?:\.\d{2})?)\s+\$?[\d,]+(?:\.\d{2})?`, "i"));
+    return match ? parseMoney(match[1]) : 0;
+  };
+  fields.federal ||= bbsiDeduction(String.raw`FEDERAL\s+TAX`);
+  fields.medicare ||= bbsiDeduction(String.raw`MEDICARE`);
+  fields.social ||= bbsiDeduction(String.raw`SOC(?:IAL)?\s+SECURITY`);
 
   // BBSI and similar pay stubs often place Payment Date and Period on one row.
   const paymentPeriod = text.match(new RegExp(String.raw`payment\s+date\s*${date}\s+(?:pay\s+)?period\s*${date}\s+${date}`, "i"));

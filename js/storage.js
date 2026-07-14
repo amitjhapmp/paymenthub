@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.5.4";
+export const APP_VERSION = "1.5.5";
 export const STORAGE_KEY = "payrollProV15";
 const PREVIOUS_STORAGE_KEY = "payrollProV1";
 const LEGACY_STORAGE_KEY = "personalPayrollHubV1";

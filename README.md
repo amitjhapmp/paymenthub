@@ -1,4 +1,4 @@
-# Payroll Pro Version 1.5.4
+# Payroll Pro Version 1.5.5
 
 Payroll Pro is a browser based payroll tracker with no prefilled employee or payroll data.
 
@@ -43,9 +43,16 @@ Upload the full folder to a GitHub repository, enable GitHub Pages from the main
 - Updated the service-worker cache so browsers load the corrected extractor.
 
 
-## Version 1.5.4 PDF extraction fix
+## Version 1.5.5 PDF extraction fix
 
 - Reconstructs PDF text by visual rows and columns.
 - Adds support for BBSI payroll statements.
 - Correctly reads Payment Date, pay period, gross pay, tax deductions, net pay, and YTD totals.
 - Keeps OCR fallback for scanned documents.
+
+
+## Version 1.5.5 deduction parser fix
+
+- Detects Medicare and Social Security labels anywhere in reconstructed PDF rows.
+- Adds a dedicated BBSI current/YTD deduction-table fallback.
+- Uses the first amount after each deduction label as the current deduction.

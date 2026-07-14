@@ -1,4 +1,4 @@
-const CACHE_NAME = "payroll-pro-v1-5-4-2026-07-14";
+const CACHE_NAME = "payroll-pro-v1-5-5-2026-07-14";
 const APP_FILES = [
   "./",
   "./index.html",
