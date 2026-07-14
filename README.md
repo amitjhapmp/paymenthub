@@ -1,4 +1,4 @@
-# Payroll Pro Version 1.5.1
+# Payroll Pro Version 1.5.2
 
 Payroll Pro is a browser based payroll tracker with no prefilled employee or payroll data.
 
@@ -34,3 +34,10 @@ PDF formats vary by employer. Detection is designed for common labels, but the r
 GitHub Pages
 
 Upload the full folder to a GitHub repository, enable GitHub Pages from the main branch root, and open the published URL. Use Ctrl + Shift + R after replacing an older version.
+
+
+## Version 1.5.2 fix
+
+- Fixed invalid regular-expression escaping in PDF payroll extraction.
+- Corrected detection for 401(K), dates, taxes, deductions, gross pay, and net pay.
+- Updated the service-worker cache so browsers load the corrected extractor.

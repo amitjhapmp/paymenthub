@@ -682,48 +682,48 @@ function detectPayStubFields(rawText){
 
   const fields = {
     payDate: firstMatch(text, [
-      new RegExp(`(?:pay\s*date|check\s*date|payment\s*date|deposit\s*date)[:\s-]*${date}`, "i")
+      new RegExp(String.raw`(?:pay\s*date|check\s*date|payment\s*date|deposit\s*date)[:\s-]*${date}`, "i")
     ], parseDateValue),
     periodStart: firstMatch(text, [
-      new RegExp(`(?:period\s*start|pay\s*period\s*start|period\s*from|from)[:\s-]*${date}`, "i")
+      new RegExp(String.raw`(?:period\s*start|pay\s*period\s*start|period\s*from|from)[:\s-]*${date}`, "i")
     ], parseDateValue),
     periodEnd: firstMatch(text, [
-      new RegExp(`(?:period\s*end|pay\s*period\s*end|period\s*to|through|thru)[:\s-]*${date}`, "i")
+      new RegExp(String.raw`(?:period\s*end|pay\s*period\s*end|period\s*to|through|thru)[:\s-]*${date}`, "i")
     ], parseDateValue),
     gross: firstMatch(text, [
-      new RegExp(`(?:current\s+gross|gross\s+pay|gross\s+earnings|total\s+earnings|gross)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:current\s+gross|gross\s+pay|gross\s+earnings|total\s+earnings|gross)[:\s-]*${amount}`, "i")
     ], parseMoney),
     federal: firstMatch(text, [
-      new RegExp(`(?:federal\s+income\s+tax|federal\s+withholding|federal\s+tax|fed\s+tax|fit)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:federal\s+income\s+tax|federal\s+withholding|federal\s+tax|fed\s+tax|fit)[:\s-]*${amount}`, "i")
     ], parseMoney),
     medicare: firstMatch(text, [
-      new RegExp(`(?:medicare(?:\s+tax)?|med\s+tax)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:medicare(?:\s+tax)?|med\s+tax)[:\s-]*${amount}`, "i")
     ], parseMoney),
     social: firstMatch(text, [
-      new RegExp(`(?:social\s+security|soc\s+security|oasdi|fica\s+ss)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:social\s+security|soc\s+security|oasdi|fica\s+ss)[:\s-]*${amount}`, "i")
     ], parseMoney),
     retirement401k: firstMatch(text, [
-      new RegExp(`(?:401\s*\(?k\)?|retirement|pre[-\s]*tax\s+retirement)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:401\s*\(?k\)?|retirement|pre[-\s]*tax\s+retirement)[:\s-]*${amount}`, "i")
     ], parseMoney),
     insurance: firstMatch(text, [
-      new RegExp(`(?:health\s+insurance|medical\s+insurance|insurance|medical\s+plan|benefits)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:health\s+insurance|medical\s+insurance|insurance|medical\s+plan|benefits)[:\s-]*${amount}`, "i")
     ], parseMoney),
     other: firstMatch(text, [
-      new RegExp(`(?:other\s+deductions?|misc(?:ellaneous)?\s+deductions?)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:other\s+deductions?|misc(?:ellaneous)?\s+deductions?)[:\s-]*${amount}`, "i")
     ], parseMoney),
     net: firstMatch(text, [
-      new RegExp(`(?:net\s+pay|net\s+payment|take\s+home\s+pay|direct\s+deposit)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:net\s+pay|net\s+payment|take\s+home\s+pay|direct\s+deposit)[:\s-]*${amount}`, "i")
     ], parseMoney),
     ytdGross: firstMatch(text, [
-      new RegExp(`(?:gross\s+(?:pay\s+)?ytd|ytd\s+gross)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:gross\s+(?:pay\s+)?ytd|ytd\s+gross)[:\s-]*${amount}`, "i")
     ], parseMoney),
     ytdNet: firstMatch(text, [
-      new RegExp(`(?:net\s+(?:pay\s+)?ytd|ytd\s+net)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:net\s+(?:pay\s+)?ytd|ytd\s+net)[:\s-]*${amount}`, "i")
     ], parseMoney)
   };
 
   if(!fields.periodStart || !fields.periodEnd){
-    const periodMatch = text.match(new RegExp(`(?:pay\s*period|period)[:\s-]*${date}\s*(?:to|-|through|thru)\s*${date}`, "i"));
+    const periodMatch = text.match(new RegExp(String.raw`(?:pay\s*period|period)[:\s-]*${date}\s*(?:to|-|through|thru)\s*${date}`, "i"));
     if(periodMatch){
       fields.periodStart ||= parseDateValue(periodMatch[1]);
       fields.periodEnd ||= parseDateValue(periodMatch[2]);
@@ -1346,7 +1346,7 @@ function setupInstallPrompt(){
 function setupServiceWorker(){
   if(!("serviceWorker" in navigator)) return;
 
-  navigator.serviceWorker.register("sw.js?v=1.5").then(registration => {
+  navigator.serviceWorker.register("sw.js?v=1.5.2").then(registration => {
     registration.update();
 
     registration.addEventListener("updatefound", () => {
