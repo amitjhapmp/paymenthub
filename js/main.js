@@ -676,9 +676,21 @@ function firstMatch(text, patterns, parser = value => value){
 }
 
 function detectPayStubFields(rawText){
-  const text = normalizePayrollText(rawText);
+  const raw = String(rawText || "").replace(/\u00a0/g, " ");
+  const text = normalizePayrollText(raw);
+  const lines = raw.split(/\r?\n/).map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
   const amount = String.raw`\$?\s*([\d,]+(?:\.\d{2})?)`;
   const date = String.raw`(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})`;
+
+  const lineAmount = (labels) => {
+    for(const line of lines){
+      for(const label of labels){
+        const match = line.match(new RegExp(String.raw`^\s*(?:${label})\s+\$?([\d,]+(?:\.\d{2})?)\b`, "i"));
+        if(match) return parseMoney(match[1]);
+      }
+    }
+    return 0;
+  };
 
   const fields = {
     payDate: firstMatch(text, [
@@ -691,28 +703,16 @@ function detectPayStubFields(rawText){
       new RegExp(String.raw`(?:period\s*end|pay\s*period\s*end|period\s*to|through|thru)[:\s-]*${date}`, "i")
     ], parseDateValue),
     gross: firstMatch(text, [
-      new RegExp(String.raw`(?:current\s+gross|gross\s+pay|gross\s+earnings|total\s+earnings|gross)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:total\s+gross\s+pay(?:\s*\/\s*hours\s+worked)?|current\s+gross|gross\s+pay|gross\s+earnings|total\s+earnings|gross\s+wages)[:\s-]*${amount}`, "i")
     ], parseMoney),
-    federal: firstMatch(text, [
-      new RegExp(String.raw`(?:federal\s+income\s+tax|federal\s+withholding|federal\s+tax|fed\s+tax|fit)[:\s-]*${amount}`, "i")
-    ], parseMoney),
-    medicare: firstMatch(text, [
-      new RegExp(String.raw`(?:medicare(?:\s+tax)?|med\s+tax)[:\s-]*${amount}`, "i")
-    ], parseMoney),
-    social: firstMatch(text, [
-      new RegExp(String.raw`(?:social\s+security|soc\s+security|oasdi|fica\s+ss)[:\s-]*${amount}`, "i")
-    ], parseMoney),
-    retirement401k: firstMatch(text, [
-      new RegExp(String.raw`(?:401\s*\(?k\)?|retirement|pre[-\s]*tax\s+retirement)[:\s-]*${amount}`, "i")
-    ], parseMoney),
-    insurance: firstMatch(text, [
-      new RegExp(String.raw`(?:health\s+insurance|medical\s+insurance|insurance|medical\s+plan|benefits)[:\s-]*${amount}`, "i")
-    ], parseMoney),
-    other: firstMatch(text, [
-      new RegExp(String.raw`(?:other\s+deductions?|misc(?:ellaneous)?\s+deductions?)[:\s-]*${amount}`, "i")
-    ], parseMoney),
+    federal: lineAmount(["federal\\s+tax", "federal\\s+income\\s+tax", "federal\\s+withholding", "fed\\s+tax", "fit"]),
+    medicare: lineAmount(["medicare(?:\\s+tax)?", "med\\s+tax"]),
+    social: lineAmount(["soc\\s+security", "social\\s+security", "oasdi", "fica\\s+ss"]),
+    retirement401k: lineAmount(["401\\s*\\(?k\\)?", "retirement", "pre[-\\s]*tax\\s+retirement"]),
+    insurance: lineAmount(["health\\s+insurance", "medical\\s+insurance", "insurance", "medical\\s+plan", "benefits"]),
+    other: lineAmount(["other\\s+deductions?", "misc(?:ellaneous)?\\s+deductions?"]),
     net: firstMatch(text, [
-      new RegExp(String.raw`(?:net\s+pay|net\s+payment|take\s+home\s+pay|direct\s+deposit)[:\s-]*${amount}`, "i")
+      new RegExp(String.raw`(?:net\s+pay|net\s+payment|take\s+home\s+pay)[:\s-]*${amount}`, "i")
     ], parseMoney),
     ytdGross: firstMatch(text, [
       new RegExp(String.raw`(?:gross\s+(?:pay\s+)?ytd|ytd\s+gross)[:\s-]*${amount}`, "i")
@@ -722,11 +722,33 @@ function detectPayStubFields(rawText){
     ], parseMoney)
   };
 
+  // BBSI and similar pay stubs often place Payment Date and Period on one row.
+  const paymentPeriod = text.match(new RegExp(String.raw`payment\s+date\s*${date}\s+(?:pay\s+)?period\s*${date}\s+${date}`, "i"));
+  if(paymentPeriod){
+    fields.payDate ||= parseDateValue(paymentPeriod[1]);
+    fields.periodStart ||= parseDateValue(paymentPeriod[2]);
+    fields.periodEnd ||= parseDateValue(paymentPeriod[3]);
+  }
+
   if(!fields.periodStart || !fields.periodEnd){
-    const periodMatch = text.match(new RegExp(String.raw`(?:pay\s*period|period)[:\s-]*${date}\s*(?:to|-|through|thru)\s*${date}`, "i"));
+    const periodMatch = text.match(new RegExp(String.raw`(?:pay\s*period|period)[:\s-]*${date}\s*(?:to|-|through|thru|\s+)\s*${date}`, "i"));
     if(periodMatch){
       fields.periodStart ||= parseDateValue(periodMatch[1]);
       fields.periodEnd ||= parseDateValue(periodMatch[2]);
+    }
+  }
+
+  // Detect Current and YTD columns used by many payroll statements.
+  for(const line of lines){
+    let match = line.match(/^gross\s+wages\s+\$?([\d,]+(?:\.\d{2})?)\s+\$?([\d,]+(?:\.\d{2})?)/i);
+    if(match){
+      fields.gross ||= parseMoney(match[1]);
+      fields.ytdGross ||= parseMoney(match[2]);
+    }
+    match = line.match(/^net\s+pay\s+\$?([\d,]+(?:\.\d{2})?)\s+\$?([\d,]+(?:\.\d{2})?)/i);
+    if(match){
+      fields.net ||= parseMoney(match[1]);
+      fields.ytdNet ||= parseMoney(match[2]);
     }
   }
 
@@ -746,12 +768,33 @@ async function extractTextFromPdf(blob){
   const data = await blob.arrayBuffer();
   const pdf = await pdfjs.getDocument({data}).promise;
   const pages = [];
+
   for(let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++){
     const page = await pdf.getPage(pageNumber);
     const content = await page.getTextContent();
-    pages.push(content.items.map(item => item.str).join(" "));
+
+    // Rebuild visual lines using PDF coordinates. This preserves table rows and
+    // prevents labels from being separated from their values.
+    const rows = [];
+    for(const item of content.items){
+      const value = String(item.str || "").trim();
+      if(!value) continue;
+      const x = Number(item.transform?.[4] || 0);
+      const y = Number(item.transform?.[5] || 0);
+      let row = rows.find(candidate => Math.abs(candidate.y - y) < 2.5);
+      if(!row){
+        row = {y, items: []};
+        rows.push(row);
+      }
+      row.items.push({x, value});
+    }
+
+    rows.sort((a, b) => b.y - a.y);
+    const lineText = rows.map(row => row.items.sort((a, b) => a.x - b.x).map(item => item.value).join(" "));
+    pages.push(lineText.join("\n"));
   }
-  return {text: pages.join("\n"), pdf};
+
+  return {text: pages.join("\n\n"), pdf};
 }
 
 async function loadTesseract(){
@@ -1346,7 +1389,7 @@ function setupInstallPrompt(){
 function setupServiceWorker(){
   if(!("serviceWorker" in navigator)) return;
 
-  navigator.serviceWorker.register("sw.js?v=1.5.2").then(registration => {
+  navigator.serviceWorker.register("sw.js?v=1.5.3").then(registration => {
     registration.update();
 
     registration.addEventListener("updatefound", () => {
