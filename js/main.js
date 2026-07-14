@@ -295,10 +295,10 @@ function updateBranding(){
   const companyName = state.profile.company || "Company";
   const companyInitial = companyName.trim().charAt(0).toUpperCase() || "P";
 
-  $("brandCompany").textContent = companyName;
-  $("brandEmployee").textContent = employeeName;
-  $("brandLogo").textContent = companyInitial;
-  document.title = `${employeeName} Payroll Hub v${APP_VERSION}`;
+  $("brandCompany").textContent = state.profile.company?.trim() || "Payroll Pro";
+  $("brandEmployee").textContent = state.profile.name?.trim() || "Payroll Management";
+  $("brandLogo").textContent = state.profile.company?.trim() ? companyInitial : "P";
+  document.title = `Payroll Pro v${APP_VERSION}${employeeName !== "Employee" ? ` | ${employeeName}` : ""}`;
 }
 
 function renderDashboard(){
@@ -721,7 +721,7 @@ async function enableNotifications(){
   renderSettings();
 
   if(permission === "granted"){
-    new Notification("Personal Payroll Hub", {
+    new Notification("Payroll Pro", {
       body: "Payday reminders are enabled.",
       icon: "assets/icon-192.png"
     });
@@ -747,7 +747,7 @@ function sendDueNotification(){
   if(!alerts.length) return;
 
   const today = new Date().toISOString().slice(0, 10);
-  const notificationKey = "personalPayrollHubV1LastNotice";
+  const notificationKey = "payrollProV1LastNotice";
 
   if(localStorage.getItem(notificationKey) !== today){
     new Notification(alerts[0].title, {
@@ -761,7 +761,7 @@ function sendDueNotification(){
 function backupPayroll(){
   state.notifications.lastBackup = new Date().toISOString();
   persist();
-  downloadBlob(JSON.stringify({version: APP_VERSION, state}, null, 2), "Personal_Payroll_Backup.json", "application/json");
+  downloadBlob(JSON.stringify({version: APP_VERSION, state}, null, 2), "Payroll_Pro_Backup.json", "application/json");
   toast("Payroll backup downloaded.");
 }
 
@@ -802,7 +802,7 @@ async function backupFull(){
 
   downloadBlob(
     JSON.stringify({version: APP_VERSION, created: new Date().toISOString(), state, pdfs}, null, 2),
-    "Personal_Payroll_Full_Backup.json",
+    "Payroll_Pro_Full_Backup.json",
     "application/json"
   );
 

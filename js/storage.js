@@ -1,6 +1,7 @@
-export const APP_VERSION = "1.1";
-export const STORAGE_KEY = "personalPayrollHubV1";
-export const PDF_DB = "personalPayrollHubV1Vault";
+export const APP_VERSION = "1.2";
+export const STORAGE_KEY = "payrollProV1";
+const LEGACY_STORAGE_KEY = "personalPayrollHubV1";
+export const PDF_DB = "payrollProV1Vault";
 export const PDF_STORE = "pdfs";
 
 export function round2(value){
@@ -39,7 +40,8 @@ export function defaultState(){
 
 export function loadState(){
   try{
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+    const saved = JSON.parse(raw || "null");
     if(!saved) return defaultState();
 
     const merged = defaultState();

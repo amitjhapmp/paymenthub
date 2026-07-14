@@ -1,7 +1,7 @@
 {
-  "name": "Personal Payroll Hub 1.0",
-  "short_name": "Payroll Hub",
-  "description": "A private payroll tracker with no prefilled personal or payroll data.",
+  "name": "Payroll Pro",
+  "short_name": "Payroll Pro",
+  "description": "Professional payroll management for individuals and small businesses.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
